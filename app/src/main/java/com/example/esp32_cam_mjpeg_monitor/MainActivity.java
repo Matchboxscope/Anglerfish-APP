@@ -3,6 +3,8 @@ package com.example.esp32_cam_mjpeg_monitor;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -18,6 +20,7 @@ import android.widget.TextView;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -26,6 +29,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,6 +46,7 @@ public class MainActivity extends Activity implements View.OnClickListener
     private ImageView monitor;
     private EditText ip_text;
 
+    private boolean isRecording = false;
     private final int ID_CONNECT = 200;
 
     @Override
@@ -56,6 +63,18 @@ public class MainActivity extends Activity implements View.OnClickListener
         TextView focusValue = findViewById(R.id.focusValue);
         SeekBar lampSlider = findViewById(R.id.lampSlider);
         TextView lampValue = findViewById(R.id.lampValue);
+
+        Button recordButton = findViewById(R.id.recordButton);
+        recordButton.setOnClickListener(v -> {
+            if (isRecording) {
+                stopRecording();
+                recordButton.setText("Start Recording");
+            } else {
+                startRecording();
+                recordButton.setText("Stop Recording");
+            }
+            isRecording = !isRecording;
+        });
 
         focusSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -291,5 +310,59 @@ public class MainActivity extends Activity implements View.OnClickListener
             e.printStackTrace();
         }
     }
+
+
+    private void startRecording() {
+        // This assumes you have a method to get the latest frame from the stream
+        new Thread(() -> {
+            while (isRecording) {
+                // TODO: Need a callback on frames from the MJPEG stream here
+                byte[] frame = getLatestFrameFromStream();
+                if (frame != null) {
+                    saveFrameToFile(frame);
+                }
+            }
+        }).start();
+    }
+
+    private void stopRecording() {
+        // We're relying on the thread in startRecording() to check this variable regularly
+    }
+
+    private void saveFrameToFile(byte[] frame) {
+        // This assumes you have a folder to save the images in
+        File imageFolder = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "MyRecordings");
+        if (!imageFolder.exists() && !imageFolder.mkdirs()) {
+            return;
+        }
+
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        File imageFile = new File(imageFolder, "IMG_" + timestamp + ".jpg");
+
+        try (FileOutputStream fos = new FileOutputStream(imageFile)) {
+            fos.write(frame);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private byte[] getLatestFrameFromStream() {
+        ImageView imageView = findViewById(R.id.monitor);
+        Drawable drawable = imageView.getDrawable();
+
+        // If the drawable is a bitmap, get the bitmap
+        if (drawable instanceof BitmapDrawable) {
+            BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
+            Bitmap bitmap = bitmapDrawable.getBitmap();
+
+            // Convert the Bitmap into a byte array
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+            return stream.toByteArray();
+        }
+
+        return null;
+    }
+
 
 }

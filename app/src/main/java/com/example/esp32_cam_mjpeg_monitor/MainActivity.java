@@ -11,6 +11,8 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -34,6 +36,12 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.github.chrisbanes.photoview.PhotoView;
+
+
+
+
+
 
 public class MainActivity extends Activity implements View.OnClickListener
 {
@@ -43,7 +51,7 @@ public class MainActivity extends Activity implements View.OnClickListener
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private HandlerThread stream_thread;
     private Handler stream_handler;
-    private ImageView monitor;
+    private PhotoView photoView;
     private EditText ip_text;
 
     private boolean isRecording = false;
@@ -55,8 +63,39 @@ public class MainActivity extends Activity implements View.OnClickListener
         setContentView(R.layout.activity_main);
 
         findViewById(R.id.connect).setOnClickListener(this);
-        monitor = findViewById(R.id.monitor);
         ip_text = findViewById(R.id.ip);
+
+        // Find the PhotoView by its ID
+        photoView = findViewById(R.id.monitor);
+
+        // Optionally, set some configuration options for PhotoView
+        photoView.setMaximumScale(5); // Set the maximum zoom scale
+        photoView.setMediumScale(3);  // Set the medium zoom scale
+
+        // Set the double tap listener to reset zoom and pan to default
+        photoView.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
+
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                // Handle single tap (if needed)
+                return false;
+            }
+
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                // Reset zoom and pan to default
+                photoView.setScale(1f, true);
+                photoView.setTranslationX(0f);
+                photoView.setTranslationY(0f);
+                return true;
+            }
+
+            @Override
+            public boolean onDoubleTapEvent(MotionEvent e) {
+                // Handle double tap event (if needed)
+                return false;
+            }
+        });
 
 
         SeekBar focusSlider = findViewById(R.id.focusSlider); // Replace with your SeekBar id
@@ -73,7 +112,6 @@ public class MainActivity extends Activity implements View.OnClickListener
                 startRecording();
                 recordButton.setText("Stop Recording");
             }
-            isRecording = !isRecording;
         });
 
         focusSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -182,7 +220,7 @@ public class MainActivity extends Activity implements View.OnClickListener
 
                     HttpURLConnection huc = (HttpURLConnection) url.openConnection();
                     huc.setRequestMethod("GET");
-                    huc.setConnectTimeout(5000); // timeout in 5 seconds
+                    huc.setConnectTimeout(500); // timeout in .5 seconds
                     huc.connect();
                     if (huc.getResponseCode() == 200)
                     {
@@ -257,7 +295,7 @@ public class MainActivity extends Activity implements View.OnClickListener
                                 @Override
                                 public void run()
                                 {
-                                    monitor.setImageBitmap(bitmap);
+                                    photoView.setImageBitmap(bitmap);
                                 }
                             });
 
@@ -314,6 +352,7 @@ public class MainActivity extends Activity implements View.OnClickListener
 
     private void startRecording() {
         // This assumes you have a method to get the latest frame from the stream
+        isRecording = true;
         new Thread(() -> {
             while (isRecording) {
                 // TODO: Need a callback on frames from the MJPEG stream here
@@ -327,6 +366,8 @@ public class MainActivity extends Activity implements View.OnClickListener
 
     private void stopRecording() {
         // We're relying on the thread in startRecording() to check this variable regularly
+        isRecording = false;
+
     }
 
     private void saveFrameToFile(byte[] frame) {
@@ -363,6 +404,9 @@ public class MainActivity extends Activity implements View.OnClickListener
 
         return null;
     }
+
+
+
 
 
 }

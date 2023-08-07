@@ -1,4 +1,4 @@
-package com.example.esp32_cam_mjpeg_monitor;
+package com.example.espressoscope;
 
 import org.junit.Test;
 

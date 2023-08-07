@@ -6,7 +6,7 @@ android {
     compileSdkVersion 29
 
     defaultConfig {
-        applicationId "com.example.esp32_cam_mjpeg_monitor"
+        applicationId "io.github.espressoscope"
         minSdkVersion 21
         targetSdkVersion 29
         versionCode 1

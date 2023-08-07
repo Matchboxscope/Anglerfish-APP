@@ -69,12 +69,21 @@
                     android:text="Start Recording" />
 
                 <Button
-                    android:id="@+id/recordButton2"
+                    android:id="@+id/snapButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_vertical|center_horizontal"
                     android:layout_weight="1"
                     android:text="Snap Image" />
+
+                <Button
+                    android:id="@+id/btnOpenGallery"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical|center_horizontal"
+                    android:layout_weight="1"
+                    android:text="Gallery" />
+
             </LinearLayout>
 
             <TextView
@@ -99,13 +108,6 @@
                 android:layout_gravity="center_vertical|center_horizontal"
                 android:text="Focus Value: 0" />
 
-            <TextView
-                android:id="@+id/rssi"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical|center_horizontal"
-                android:gravity="center" />
-
             <SeekBar
                 android:id="@+id/focusSlider"
                 android:layout_width="match_parent"
@@ -113,6 +115,22 @@
                 android:layout_gravity="center_vertical|center_horizontal"
                 android:max="200"
                 android:progress="100" />
+
+            <TextView
+                android:id="@+id/resolutionValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:gravity="center"
+                android:text="Resolution: 0" />
+
+            <SeekBar
+                android:id="@+id/resolutionSlider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:max="13"
+                android:progress="9" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

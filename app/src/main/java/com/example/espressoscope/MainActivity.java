@@ -1,6 +1,10 @@
-package com.example.esp32_cam_mjpeg_monitor;
+package com.example.espressoscope;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -19,6 +23,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -38,9 +43,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.github.chrisbanes.photoview.PhotoView;
 
-
-
-
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 
 public class MainActivity extends Activity implements View.OnClickListener
@@ -98,7 +103,9 @@ public class MainActivity extends Activity implements View.OnClickListener
         });
 
 
-        SeekBar focusSlider = findViewById(R.id.focusSlider); // Replace with your SeekBar id
+        SeekBar focusSlider = findViewById(R.id.focusSlider);
+        SeekBar resolutionSlider = findViewById(R.id.resolutionSlider);
+        TextView resolutionValue = findViewById(R.id.resolutionValue);
         TextView focusValue = findViewById(R.id.focusValue);
         SeekBar lampSlider = findViewById(R.id.lampSlider);
         TextView lampValue = findViewById(R.id.lampValue);
@@ -111,6 +118,20 @@ public class MainActivity extends Activity implements View.OnClickListener
             } else {
                 startRecording();
                 recordButton.setText("Stop Recording");
+            }
+        });
+
+        Button snapButton = findViewById(R.id.snapButton);
+        snapButton.setOnClickListener(v -> {
+            snapImage();
+        });
+
+        Button btnOpenGallery = findViewById(R.id.btnOpenGallery);
+        btnOpenGallery.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, GalleryActivity.class);
+                startActivity(intent);
             }
         });
 
@@ -129,6 +150,23 @@ public class MainActivity extends Activity implements View.OnClickListener
             public void onStopTrackingTouch(SeekBar seekBar) {
                 seekBar.setProgress(100);
                 focusValue.setText("Focus Value "+"0");
+            }
+        });
+
+        resolutionSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                resolutionValue.setText("Resolution:  "+String.valueOf(progress));
+                setResolution(progress);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
             }
         });
 
@@ -153,7 +191,10 @@ public class MainActivity extends Activity implements View.OnClickListener
             }
         });
 
-        ip_text.setText("192.168.4.1");
+        // get old IP address
+        ip_text = findViewById(R.id.ip);
+        String ip = loadIpAddress();
+        ip_text.setText(ip);
 
         stream_thread = new HandlerThread("http");
         stream_thread.start();
@@ -167,6 +208,9 @@ public class MainActivity extends Activity implements View.OnClickListener
         switch (v.getId())
         {
             case R.id.connect:
+                String ip = ip_text.getText().toString();
+                saveIpAddress(ip);
+
                 stream_handler.sendEmptyMessage(ID_CONNECT);
                 break;
             default:
@@ -178,6 +222,11 @@ public class MainActivity extends Activity implements View.OnClickListener
 
     private void setFocus(int value) {
         String focus_url = "http://" + ip_text.getText() + ":80/control?var=focusSlider&val=" + value;
+        sendMessage(focus_url);
+    }
+
+    private void setResolution(int value) {
+        String focus_url = "http://" + ip_text.getText() + ":80/control?var=framesize&val=" + value;
         sendMessage(focus_url);
     }
 
@@ -349,6 +398,15 @@ public class MainActivity extends Activity implements View.OnClickListener
         }
     }
 
+    private void snapImage(){
+        new Thread(() -> {
+            // TODO: Need a callback on frames from the MJPEG stream here
+                byte[] frame = getLatestFrameFromStream();
+                if (frame != null) {
+                    saveFrameToFile(frame);
+            }
+        }).start();
+    }
 
     private void startRecording() {
         // This assumes you have a method to get the latest frame from the stream
@@ -372,16 +430,30 @@ public class MainActivity extends Activity implements View.OnClickListener
 
     private void saveFrameToFile(byte[] frame) {
         // This assumes you have a folder to save the images in
-        File imageFolder = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "MyRecordings");
-        if (!imageFolder.exists() && !imageFolder.mkdirs()) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            // If permission is not granted, request it
+            requestStoragePermission();
             return;
         }
 
+        // FIXME: Need to change this to DCIM, but doesnt work
+        String imageFolder = getFilesDir().getAbsolutePath();
+
+        /*
+        //File imageFolder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "matchboxscope");
+        File imageFolder Environment.getExternalStoragePublicDirectory("ESPressoscope");
+        File imageFolder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "matchboxscope");
+
+        if (!imageFolder.exists() && !imageFolder.mkdirs()) {
+
+        }
+        */
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         File imageFile = new File(imageFolder, "IMG_" + timestamp + ".jpg");
 
         try (FileOutputStream fos = new FileOutputStream(imageFile)) {
             fos.write(frame);
+            Toast.makeText(this, "File stored: "+ "IMG_" + timestamp + ".jpg", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -404,6 +476,45 @@ public class MainActivity extends Activity implements View.OnClickListener
 
         return null;
     }
+
+    private static final int REQUEST_WRITE_STORAGE_PERMISSION = 1;
+
+    private void requestStoragePermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQUEST_WRITE_STORAGE_PERMISSION);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_WRITE_STORAGE_PERMISSION: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission was granted, proceed with saving the file
+                } else {
+                    // Permission was denied, inform the user or disable the feature
+                    Toast.makeText(this, "Permission to write to storage was denied", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            }
+        }
+    }
+
+    private void saveIpAddress(String ip) {
+        SharedPreferences sharedPreferences = getSharedPreferences("myPreferences", MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("ipAddress", ip);
+        editor.apply();
+    }
+
+    private String loadIpAddress() {
+        SharedPreferences sharedPreferences = getSharedPreferences("myPreferences", MODE_PRIVATE);
+        return sharedPreferences.getString("ipAddress", "192.168.4.1"); // Returning an empty string if no value found
+    }
+
+
 
 
 

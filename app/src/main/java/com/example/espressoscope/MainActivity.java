@@ -273,10 +273,8 @@ public class MainActivity extends Activity implements View.OnClickListener
                     huc.connect();
                     if (huc.getResponseCode() == 200)
                     {
-                        InputStream in = huc.getInputStream();
-                        BufferedReader br = new BufferedReader(new InputStreamReader(in));
+                        huc.getInputStream().close();
                     }
-
                 } catch (Exception e)
                 {
                     e.printStackTrace();
@@ -289,14 +287,9 @@ public class MainActivity extends Activity implements View.OnClickListener
     private void VideoStream()
     {
         String stream_url = "http://" + ip_text.getText() + ":81";
-
-        BufferedInputStream bis = null;
-        FileOutputStream fos = null;
         try
         {
-
             URL url = new URL(stream_url);
-
             try
             {
                 HttpURLConnection huc = (HttpURLConnection) url.openConnection();
@@ -309,48 +302,37 @@ public class MainActivity extends Activity implements View.OnClickListener
                 if (huc.getResponseCode() == 200)
                 {
                     InputStream in = huc.getInputStream();
-
                     InputStreamReader isr = new InputStreamReader(in);
                     BufferedReader br = new BufferedReader(isr);
-
                     String data;
-
-                    int len;
-                    byte[] buffer;
 
                     while ((data = br.readLine()) != null)
                     {
+                        //look up for the content-type
                         if (data.contains("Content-Type:"))
                         {
+                            //after that read length line, we dont need the length but it increase the buffer position about 1 line
                             data = br.readLine();
+                            //after that the binary data starts and we can pass directly the inputstream because its at same position as the bufferedReader
+                            final Bitmap bitmap = BitmapFactory.decodeStream(in);
 
-                            len = Integer.parseInt(data.split(":")[1].trim());
-
-                            bis = new BufferedInputStream(in);
-                            buffer = new byte[len];
-
-                            int t = 0;
-                            while (t < len)
-                            {
-                                t += bis.read(buffer, t, len - t);
-                            }
-
-                            Bytes2ImageFile(buffer, getExternalFilesDir(Environment.DIRECTORY_PICTURES) + "/0A.jpg");
-
-                            final Bitmap bitmap = BitmapFactory.decodeFile(getExternalFilesDir(Environment.DIRECTORY_PICTURES) + "/0A.jpg");
-
-                            runOnUiThread(new Runnable()
-                            {
-                                @Override
-                                public void run()
-                                {
-                                    photoView.setImageBitmap(bitmap);
-                                }
-                            });
-
+                            photoView.post(() -> photoView.setImageBitmap(bitmap));
                         }
-
-
+                    }
+                    try
+                    {
+                        if (br != null)
+                        {
+                            br.close();
+                        }
+                        if(in != null)
+                        {
+                            in.close();
+                        }
+                        stream_handler.sendEmptyMessageDelayed(ID_CONNECT,3000);
+                    } catch (IOException e)
+                    {
+                        e.printStackTrace();
                     }
                 }
 
@@ -363,39 +345,9 @@ public class MainActivity extends Activity implements View.OnClickListener
             e.printStackTrace();
         } finally
         {
-            try
-            {
-                if (bis != null)
-                {
-                    bis.close();
-                }
-                if (fos != null)
-                {
-                    fos.close();
-                }
 
-                stream_handler.sendEmptyMessageDelayed(ID_CONNECT,3000);
-            } catch (IOException e)
-            {
-                e.printStackTrace();
-            }
         }
 
-    }
-
-    private void Bytes2ImageFile(byte[] bytes, String fileName)
-    {
-        try
-        {
-            File file = new File(fileName);
-            FileOutputStream fos = new FileOutputStream(file);
-            fos.write(bytes, 0, bytes.length);
-            fos.flush();
-            fos.close();
-        } catch (Exception e)
-        {
-            e.printStackTrace();
-        }
     }
 
     private void snapImage(){

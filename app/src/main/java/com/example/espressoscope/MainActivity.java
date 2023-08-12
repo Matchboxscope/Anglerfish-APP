@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -22,6 +24,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,6 +45,7 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.github.chrisbanes.photoview.PhotoView;
+import com.google.android.material.chip.Chip;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -60,6 +64,8 @@ public class MainActivity extends Activity implements View.OnClickListener
     private EditText ip_text;
 
     private boolean isRecording = false;
+
+    private boolean isTimelapse = false;
     private final int ID_CONNECT = 200;
 
     @Override
@@ -106,6 +112,10 @@ public class MainActivity extends Activity implements View.OnClickListener
         SeekBar focusSlider = findViewById(R.id.focusSlider);
         SeekBar resolutionSlider = findViewById(R.id.resolutionSlider);
         TextView resolutionValue = findViewById(R.id.resolutionValue);
+        SeekBar timelapseSlider = findViewById(R.id.timelapseSlider);
+        TextView timelapseValue = findViewById(R.id.timelapseValue);
+        Button timelapseSwitch = findViewById(R.id.timelapseSwitch);
+
         TextView focusValue = findViewById(R.id.focusValue);
         SeekBar lampSlider = findViewById(R.id.lampSlider);
         TextView lampValue = findViewById(R.id.lampValue);
@@ -171,6 +181,39 @@ public class MainActivity extends Activity implements View.OnClickListener
         });
 
 
+
+        timelapseSwitch.setOnClickListener(v -> {
+            if (isTimelapse) {
+                timelapseSwitch.setBackgroundColor(Color.GREEN);
+                setTimelapseActive(1);
+                timelapseSwitch.setText("Start");
+                isTimelapse = false;
+            } else {
+                isTimelapse = true;
+                timelapseSwitch.setBackgroundColor(Color.RED);
+                setTimelapseActive(1);
+                timelapseSwitch.setText("Stop");
+            }
+        });
+
+        timelapseSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                timelapseValue.setText("Timelpase:  "+String.valueOf(progress));
+                setTimelapse(progress);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+
         lampSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -229,6 +272,17 @@ public class MainActivity extends Activity implements View.OnClickListener
         String focus_url = "http://" + ip_text.getText() + ":80/control?var=framesize&val=" + value;
         sendMessage(focus_url);
     }
+
+    private void setTimelapse(int value) {
+        String focus_url = "http://" + ip_text.getText() + ":80/control?var=timelapseInterval&val=" + value;
+        sendMessage(focus_url);
+    }
+
+    private void setTimelapseActive(int value) {
+        String focus_url = "http://" + ip_text.getText() + ":80/control?var=isTimelapse&val=" + value;
+        sendMessage(focus_url);
+    }
+
 
     private void setLamp(int value){
         String lamp_url = "http://" + ip_text.getText() + ":80/control?var=lamp&val=" + value;
@@ -449,11 +503,15 @@ public class MainActivity extends Activity implements View.OnClickListener
         }
         */
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-        File imageFile = new File(imageFolder, "IMG_" + timestamp + ".jpg");
+        long timeMillis = System.currentTimeMillis();
+
+
+        File imageFile = new File(imageFolder, "IMG_" + timestamp  +"_"+timeMillis + ".jpg");
 
         try (FileOutputStream fos = new FileOutputStream(imageFile)) {
             fos.write(frame);
-            Toast.makeText(this, "File stored: "+ "IMG_" + timestamp + ".jpg", Toast.LENGTH_SHORT).show();
+            Log.i(TAG, "File stored: "+ "IMG_" + timestamp +"_"+timeMillis+ ".jpg");
+            //Toast.makeText(this, "File stored: "+ "IMG_" + timestamp + ".jpg", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             e.printStackTrace();
         }

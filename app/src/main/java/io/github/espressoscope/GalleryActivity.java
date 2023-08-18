@@ -1,10 +1,10 @@
-package com.example.espressoscope;
+package io.github.espressoscope;
 
 import android.os.Bundle;
 import android.os.Environment;
 import android.widget.GridView;
 
-import com.example.espressoscope.ImageAdapter;
+import io.github.espressoscope.ImageAdapter;
 
 import java.io.File;
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package com.example.espressoscope;
+package io.github.espressoscope;
 
 import android.content.Context;
 import android.graphics.Bitmap;

@@ -1,4 +1,4 @@
-package com.example.espressoscope;
+package io.github.espressoscope;
 
 import android.Manifest;
 import android.app.Activity;
@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -50,6 +51,7 @@ import com.google.android.material.chip.Chip;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 
 public class MainActivity extends Activity implements View.OnClickListener
@@ -72,6 +74,25 @@ public class MainActivity extends Activity implements View.OnClickListener
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
+        // Setting an onClickListener to a button (assuming you have one) to launch the new Activity
+        Button button = findViewById(R.id.statusButton);
+        button.setOnClickListener(view -> {
+            Intent intent = new Intent(this, StatusActivity.class);
+            intent.putExtra("IP", ip_text.getText());
+            startActivity(intent);
+        });
+
+        Button btnOpenLocation = findViewById(R.id.btnOpenFilelocation);
+        btnOpenLocation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openFolder();
+            }
+        });
+
+
 
         findViewById(R.id.connect).setOnClickListener(this);
         ip_text = findViewById(R.id.ip);
@@ -115,6 +136,8 @@ public class MainActivity extends Activity implements View.OnClickListener
         SeekBar timelapseSlider = findViewById(R.id.timelapseSlider);
         TextView timelapseValue = findViewById(R.id.timelapseValue);
         Button timelapseSwitch = findViewById(R.id.timelapseSwitch);
+        TextView aecValue = findViewById(R.id.aecValue);
+        SeekBar aecSlider = findViewById(R.id.aecSlider);
 
         TextView focusValue = findViewById(R.id.focusValue);
         SeekBar lampSlider = findViewById(R.id.lampSlider);
@@ -160,6 +183,22 @@ public class MainActivity extends Activity implements View.OnClickListener
             public void onStopTrackingTouch(SeekBar seekBar) {
                 seekBar.setProgress(100);
                 focusValue.setText("Focus Value "+"0");
+            }
+        });
+
+        aecSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                setAEC(progress); // Assuming the SeekBar's progress is from 0 to 2000.
+                aecValue.setText("AEC: "+String.valueOf(progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
             }
         });
 
@@ -268,6 +307,11 @@ public class MainActivity extends Activity implements View.OnClickListener
         sendMessage(focus_url);
     }
 
+    private void setAEC(int value) {
+        String focus_url = "http://" + ip_text.getText() + ":80/control?var=ae_level&val=" + value;
+        sendMessage(focus_url);
+    }
+
     private void setResolution(int value) {
         String focus_url = "http://" + ip_text.getText() + ":80/control?var=framesize&val=" + value;
         sendMessage(focus_url);
@@ -362,6 +406,7 @@ public class MainActivity extends Activity implements View.OnClickListener
 
                 if (huc.getResponseCode() == 200)
                 {
+
                     InputStream in = huc.getInputStream();
 
                     InputStreamReader isr = new InputStreamReader(in);
@@ -371,6 +416,9 @@ public class MainActivity extends Activity implements View.OnClickListener
 
                     int len;
                     byte[] buffer;
+
+                    // IDentify that we are connected
+                    Toast.makeText(MainActivity.this, "We are connected!", Toast.LENGTH_SHORT).show();
 
                     while ((data = br.readLine()) != null)
                     {
@@ -411,10 +459,12 @@ public class MainActivity extends Activity implements View.OnClickListener
             } catch (IOException e)
             {
                 e.printStackTrace();
+                Toast.makeText(MainActivity.this, "We are not connected. Wrong URL?", Toast.LENGTH_SHORT).show();
             }
         } catch (MalformedURLException e)
         {
             e.printStackTrace();
+            Toast.makeText(MainActivity.this, "We are not connected. Wrong URL?", Toast.LENGTH_SHORT).show();
         } finally
         {
             try
@@ -458,7 +508,10 @@ public class MainActivity extends Activity implements View.OnClickListener
                 byte[] frame = getLatestFrameFromStream();
                 if (frame != null) {
                     saveFrameToFile(frame);
-            }
+                }
+                else{
+                    Toast("Please first start the stream!");
+                }
         }).start();
     }
 
@@ -492,22 +545,9 @@ public class MainActivity extends Activity implements View.OnClickListener
 
         // FIXME: Need to change this to DCIM, but doesnt work
         String imageFolder = getFilesDir().getAbsolutePath();
-
-        /*
-        //File imageFolder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "matchboxscope");
-        File imageFolder Environment.getExternalStoragePublicDirectory("ESPressoscope");
-        File imageFolder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "matchboxscope");
-
-        if (!imageFolder.exists() && !imageFolder.mkdirs()) {
-
-        }
-        */
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         long timeMillis = System.currentTimeMillis();
-
-
         File imageFile = new File(imageFolder, "IMG_" + timestamp  +"_"+timeMillis + ".jpg");
-
         try (FileOutputStream fos = new FileOutputStream(imageFile)) {
             fos.write(frame);
             Log.i(TAG, "File stored: "+ "IMG_" + timestamp +"_"+timeMillis+ ".jpg");
@@ -572,10 +612,34 @@ public class MainActivity extends Activity implements View.OnClickListener
         return sharedPreferences.getString("ipAddress", "192.168.4.1"); // Returning an empty string if no value found
     }
 
+    private void Toast(String mMessage){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, mMessage, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
 
 
+    private void openFolder() {
 
+        File folderLocation = new File(getFilesDir().getAbsolutePath(), "");  // Adjust the path to your specific folder if it's in a different location
+        Uri folderUri = FileProvider.getUriForFile(this, "io.github.espressoscope.fileprovider", folderLocation);
 
+        try{
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(folderUri, "resource/folder");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-
+            if (intent.resolveActivity(getPackageManager()) != null) {
+                startActivity(intent);
+            } else {
+                Toast.makeText(this, "No suitable app found to open the folder.", Toast.LENGTH_LONG).show();
+            }
+        }
+        catch (Exception e){
+            Toast("File location is: "+String.valueOf(folderLocation));
+        }
+    }
 }

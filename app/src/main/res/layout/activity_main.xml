@@ -139,6 +139,24 @@
                 android:gravity="center"
                 android:text="Timelapse (s): 0" />
 
+            <TextView
+                android:id="@+id/aecValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:gravity="center"
+                android:text="AEC: 0" />
+
+            <SeekBar
+                android:id="@+id/aecSlider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:min="-2"
+                android:max="2"
+                android:progress="0" />
+
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -164,10 +182,30 @@
                     android:text="Start" />
 
 
+
             </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="6">
 
-
+            <Button
+                android:id="@+id/statusButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:layout_weight="1.5"
+                android:text="Status" />
+            <Button
+                android:id="@+id/btnOpenFilelocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:layout_weight="1.5"
+                android:text="Open File Location" />
+        </LinearLayout>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
